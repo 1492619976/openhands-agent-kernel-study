@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenHands 源码图解卡</title>
+<style>
+  :root{--ink:#1a2233;--sub:#5b6478;--line:#d8dde8;--bg:#f6f8fc;--card:#fff;--accent:#7c5cff;--green:#0e9f6e;--amber:#d97706;--red:#dc2626;--blue:#2563eb}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Microsoft YaHei",system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.7;padding:32px 16px}
+  .wrap{max-width:980px;margin:0 auto}
+  h1{font-size:26px;margin-bottom:4px}
+  .meta{color:var(--sub);font-size:13px;margin-bottom:24px}
+  h2{font-size:19px;margin:34px 0 14px;padding-left:10px;border-left:4px solid var(--accent)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:16px}
+  .tl{display:flex;gap:0;flex-wrap:wrap}
+  .tl .node{flex:1;min-width:190px;text-align:center;padding:14px 10px;border-top:3px solid var(--accent);background:#fbfaff;margin:0 6px 0 0;border-radius:0 0 8px 8px}
+  .tl .node:last-child{margin-right:0}
+  .tl .yr{font-weight:700;color:var(--accent);font-size:13px}
+  .tl .tt{font-size:14px;font-weight:600;margin:2px 0}
+  .tl .ds{font-size:12px;color:var(--sub)}
+  .arch{display:flex;flex-direction:column;gap:10px}
+  .layer{border-radius:10px;padding:12px 16px;font-size:14px}
+  .layer b{font-size:15px}
+  .layer .tag{float:right;font-size:12px;opacity:.85}
+  .l-front{background:#eef2ff;border:1px solid #c7d2fe}
+  .l-proto{background:#fff7ed;border:1px solid #fed7aa;text-align:center;font-size:13px;color:#9a3412}
+  .l-kernel{background:#f0fdf4;border:1px solid #bbf7d0}
+  .l-tools{background:#fdf4ff;border:1px solid #f5d0fe}
+  .l-sandbox{background:#f8fafc;border:1px solid var(--line)}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+  .chip{background:#fff;border:1px solid var(--line);border-radius:99px;padding:2px 10px;font-size:12px;color:var(--sub)}
+  .flow{display:flex;flex-direction:column;align-items:center;gap:0}
+  .fstep{width:88%;background:#fff;border:1.5px solid var(--accent);border-radius:10px;padding:10px 16px;font-size:14px;text-align:center}
+  .fstep b{color:var(--accent)}
+  .fstep.small{width:70%;border-color:var(--line);font-size:13px;color:var(--sub)}
+  .arrow{width:2px;height:22px;background:var(--accent);position:relative}
+  .arrow:after{content:"";position:absolute;bottom:-1px;left:-4px;border:5px solid transparent;border-top-color:var(--accent)}
+  .loopnote{font-size:12px;color:var(--amber);border:1px dashed var(--amber);border-radius:8px;padding:4px 12px;margin:6px 0}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th{background:#eef1f8;text-align:left}
+  th,td{border:1px solid var(--line);padding:8px 10px}
+  .ok{color:var(--green);font-weight:700}
+  code{background:#eef1f8;border-radius:4px;padding:1px 6px;font-size:12.5px;font-family:Consolas,monospace}
+  .q{border-left:4px solid var(--blue);background:#f8faff;padding:10px 14px;border-radius:0 8px 8px 0;margin-bottom:10px;font-size:14px}
+  .a{display:none;background:#f0fdf4;border-radius:8px;padding:10px 14px;font-size:13.5px;margin:-6px 0 10px}
+  details summary{cursor:pointer;color:var(--blue);font-size:13px;padding:2px 0 6px}
+  .foot{color:var(--sub);font-size:12px;text-align:center;margin-top:28px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🦾 OpenHands 源码图解卡</h1>
+  <div class="meta">前 OpenDevin · 双仓体系 · 主仓 90.5k★（TS/React 控制台）+ software-agent-sdk 1.2k★（Python 内核）· 2026-10-11 入库快照</div>
+
+  <h2>① 演变时间线：单体 → 内核/界面分离</h2>
+  <div class="card">
+    <div class="tl">
+      <div class="node"><div class="yr">2024-03</div><div class="tt">OpenDevin 诞生</div><div class="ds">单体 Python 项目<br>对标 Cognition Devin</div></div>
+      <div class="node"><div class="yr">2024~2025</div><div class="tt">改名 OpenHands</div><div class="ds">星数冲上 9 万<br>All-Hands-AI 组织</div></div>
+      <div class="node"><div class="yr">2025-08</div><div class="tt">大拆仓</div><div class="ds">Python 内核独立成<br>software-agent-sdk</div></div>
+      <div class="node"><div class="yr">2026</div><div class="tt">Agent Canvas</div><div class="ds">主仓重写为 TS/React<br>控制中心，组织改名</div></div>
+    </div>
+    <p style="font-size:13px;color:var(--sub);margin-top:10px">💡 拆仓逻辑 = ZCode「apps/zcode-cli 引擎 + desktop/web 皮」的另一种解法；数仓黑话：把 ETL 引擎和 BI 报表层拆成两个产品。</p>
+  </div>
+
+  <h2>② 双仓架构分层图</h2>
+  <div class="card arch">
+    <div class="layer l-front"><b>Agent Canvas（主仓 src/）</b><span class="tag">React19+Vite+Zustand</span><br>对话/终端/文件/自动化 UI，可插多个后端
+      <div class="chips"><span class="chip">xterm.js 终端</span><span class="chip">MSW mock</span><span class="chip">Electron 打包</span><span class="chip">npm @openhands/agent-canvas</span></div>
+    </div>
+    <div class="layer l-proto">⇅ Agent Server HTTP API ＋ ACP 协议（可插 Claude Code / Codex / Gemini / OpenCode 当后端 agent）</div>
+    <div class="layer l-kernel"><b>openhands-sdk（Python 内核）</b><span class="tag">litellm+pydantic+fastmcp</span><br>conversation 主循环 · agent.step() · 事件流 · condenser 压缩
+      <div class="chips"><span class="chip">llm/ 多模型路由</span><span class="chip">event/ 事件溯源落盘</span><span class="chip">mcp/ DGA 同款</span><span class="chip">SWE-Bench 77.6</span></div>
+    </div>
+    <div class="layer l-tools"><b>openhands-tools（工具包）</b><span class="tag">ToolDefinition+register_tool</span>
+      <div class="chips"><span class="chip">terminal</span><span class="chip">file_editor</span><span class="chip">glob/grep</span><span class="chip">delegate 子代理</span><span class="chip">browser_use</span><span class="chip">planning_file_editor</span><span class="chip">workflow</span></div>
+    </div>
+    <div class="layer l-sandbox"><b>openhands-workspace（沙箱分级）</b><span class="tag">local / docker / cloud / remote_api</span></div>
+  </div>
+
+  <h2>③ Agent 主循环（local_conversation.py）</h2>
+  <div class="card flow">
+    <div class="fstep small">用户 send_message() → 事件入列</div>
+    <div class="arrow"></div>
+    <div class="fstep"><b>while True: agent.step()</b> ＋ 状态机（RUNNING/PAUSED/STUCK/确认/FINISHED/ERROR）</div>
+    <div class="arrow"></div>
+    <div class="fstep">step 内部：待确认动作 → hook 检查 → <b>condenser 上下文压缩</b> → llm.generate(tools=…)</div>
+    <div class="arrow"></div>
+    <div class="fstep">解析 function calls → <b>ParallelToolExecutor 并行执行</b> → Observation 事件回填</div>
+    <div class="arrow"></div>
+    <div class="fstep small">兜底：卡死检测 / 最大迭代 / 预算超限 → FINISHED 或 ERROR</div>
+    <div class="loopnote">↺ Observation 喂回下一轮，直到模型不再要工具 = 一次 run() 结束</div>
+  </div>
+
+  <h2>④ 依赖对照：Python 重写 ZCode 的预测验证</h2>
+  <div class="card">
+    <table>
+      <tr><th>ZCode（TS）</th><th>OpenHands SDK（Python）</th><th>命中</th></tr>
+      <tr><td>Vercel AI SDK v6</td><td><code>litellm</code></td><td class="ok">✅</td></tr>
+      <tr><td>zod 4</td><td><code>pydantic</code></td><td class="ok">✅</td></tr>
+      <tr><td>自研 MCP 接入</td><td><code>fastmcp</code>（DGA 同款）</td><td class="ok">✅</td></tr>
+      <tr><td>.agents/skills SKILL.md</td><td>SKILL.md+frontmatter，兼容 Claude Code 格式</td><td class="ok">✅</td></tr>
+      <tr><td>compact-session 压缩</td><td>condenser</td><td class="ok">✅</td></tr>
+      <tr><td>approval 审批门</td><td>confirmation mode</td><td class="ok">✅</td></tr>
+      <tr><td>—</td><td>workspace 四级沙箱（更强）</td><td>➕超出</td></tr>
+    </table>
+  </div>
+
+  <h2>⑤ 自测卡</h2>
+  <div class="card">
+    <div class="q">Q1：OpenHands 现在还是"纯 Python 项目"吗？</div>
+    <details><summary>看答案</summary><div class="a">不是。2025-08 拆仓后主仓是 TS/React 的 Agent Canvas（控制台），Python 内核在独立仓 software-agent-sdk。</div></details>
+    <div class="q">Q2：它的主循环和我说的"300 行迷你内核"什么关系？</div>
+    <details><summary>看答案</summary><div class="a">同构。while True + step（压缩→调 LLM→并行工具→回填）+ 状态机兜底；官方 hello world 20 行就能跑通这个循环的库版本。</div></details>
+    <div class="q">Q3：为什么 Agent Canvas 能跑 Claude Code/OpenCode 当后端？</div>
+    <details><summary>看答案</summary><div class="a">靠 ACP（Agent Client Protocol）开放协议 + Agent Server HTTP API，界面与内核解耦后任何 ACP 兼容 agent 都能插。</div></details>
+    <div class="q">Q4：对 DGA 最值得抄的三个设计？</div>
+    <details><summary>看答案</summary><div class="a">①事件溯源落盘（审计日志）②confirmation mode（审批门）③condenser（长对话压缩）。</div></details>
+  </div>
+
+  <div class="foot">📚 配套精读笔记：OpenHands解读.md · 关联：ZCode解读 / OpenCode解读 / Agent源码研究五线对比 · 2026-10-11</div>
+</div>
+</body>
+</html>
